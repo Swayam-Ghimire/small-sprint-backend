@@ -1,0 +1,59 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nest_api
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      DATABASE_URL: ${POSTGRES_URL}
+    networks:
+      - default
+      - small-sprint
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: nest_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports: 
+      - '5432:5432'
+    volumes: 
+      - 'pg_data:/var/lib/postgresql/data'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+      - small-sprint
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: keycloak_local
+    command: start-dev
+    ports:
+      - '8081:8080'
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED: 'true'
+    networks:
+      - default
+      - small-sprint
+
+networks:
+  default:
+  small-sprint:
+    external: true
+
+volumes:
+  pg_data:
