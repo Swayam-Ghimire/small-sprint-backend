@@ -10,7 +10,10 @@ import globals from 'globals';
 export default tseslint.config(
   // 1. Global Ignores
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
+    // `generated/**` is Prisma/Zod output — machine-written, never hand-edited,
+    // and it legitimately contains `any`. Linting it would fail the zero-`any`
+    // policy for code you do not own.
+    ignores: ['dist/**', 'node_modules/**', 'coverage/**', 'generated/**'],
   },
 
   // 2. JavaScript Baseline & Security (Applies to all files)
@@ -61,7 +64,46 @@ export default tseslint.config(
       '@typescript-eslint/interface-name-prefix': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
-      '@typescript-eslint/no-explicit-any': 'error',
+
+      // ─────────────────────────────────────────────────────────────
+      // ZERO-`any` POLICY — see docs/eslint-prettier-rules.md §3
+      // `any` switches the type-checker OFF for whatever it touches.
+      // Writing it is an error, and so is *using* a value that is
+      // already `any` (e.g. JSON.parse, untyped libs, req.body).
+      // Escape hatch: use `unknown` + a Zod parse, never `any`.
+      // ─────────────────────────────────────────────────────────────
+
+      // 1. You may not WRITE `any` anywhere — including `...args: any[]`.
+      '@typescript-eslint/no-explicit-any': [
+        'error',
+        { ignoreRestArgs: false },
+      ],
+
+      // 2. You may not USE a value that is already `any` (contagion guards).
+      '@typescript-eslint/no-unsafe-assignment': 'error', // const x = anyVal
+      '@typescript-eslint/no-unsafe-member-access': 'error', // anyVal.foo
+      '@typescript-eslint/no-unsafe-call': 'error', // anyVal()
+      '@typescript-eslint/no-unsafe-return': 'error', // return anyVal
+      '@typescript-eslint/no-unsafe-argument': 'error', // fn(anyVal)
+      '@typescript-eslint/no-unsafe-declaration-merging': 'error',
+      '@typescript-eslint/no-unsafe-function-type': 'error', // `Function`
+      '@typescript-eslint/no-unsafe-enum-comparison': 'error',
+      '@typescript-eslint/no-wrapper-object-types': 'error', // `Object`, `String`
+
+      // 3. `any` absorbs unions silently: `string | any` collapses to `any`.
+      '@typescript-eslint/no-redundant-type-constituents': 'error',
+
+      // 4. Close the back doors that would let `any` back in.
+      //    `@ts-ignore` is banned outright; `@ts-expect-error` needs a reason.
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-ignore': true,
+          'ts-nocheck': true,
+          'ts-expect-error': 'allow-with-description',
+          minimumDescriptionLength: 10,
+        },
+      ],
 
       // Async & Promise safety
       '@typescript-eslint/no-floating-promises': 'error',

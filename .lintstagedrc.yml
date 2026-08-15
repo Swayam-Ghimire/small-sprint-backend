@@ -1,3 +1,5 @@
+# `--max-warnings=0` makes the commit hook a real gate: a warning is as fatal
+# as an error, so nothing (including a stray `any`) can be "temporarily" merged.
 'src/**/*.ts':
-  - npm run lint
+  - eslint --fix --max-warnings=0 --no-warn-ignored
   - prettier --write
